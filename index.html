@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoBots · investcryptoWhite</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0c0f;--bg2:#0f1217;--bg3:#151a22;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e2e8f0;--muted:#6b7a90;--dim:#3a4455;
+  --green:#00d68f;--red:#ff4d6a;--yellow:#f0b429;--cyan:#38bdf8;--accent:#4f8ef7;
+  --mono:'JetBrains Mono',monospace;--display:'Syne',sans-serif;
+}
+body{
+  min-height:100vh;background:var(--bg);font-family:var(--mono);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 20px 60px;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;
+}
+body::after{
+  content:'';position:fixed;top:-120px;left:50%;transform:translateX(-50%);
+  width:600px;height:300px;
+  background:radial-gradient(ellipse,rgba(79,142,247,.12) 0%,transparent 70%);
+  pointer-events:none;z-index:0;
+}
+.page{position:relative;z-index:1;width:100%;max-width:540px;display:flex;flex-direction:column;align-items:center;gap:24px}
+.header{text-align:center;padding-top:8px}
+.header h1{font-family:var(--display);font-size:38px;font-weight:800;color:#fff;letter-spacing:-1.5px;line-height:1}
+.header h1 span{color:var(--accent)}
+.header p{margin-top:8px;font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
+.status-bar{
+  width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;
+}
+.sb-live{display:flex;align-items:center;gap:6px;color:var(--green)}
+.sb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.sb-time{color:var(--muted);font-size:10px}
+.prices{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.price-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:16px;display:flex;flex-direction:column;gap:4px;transition:border-color .2s;
+}
+.price-card:hover{border-color:var(--border2)}
+.price-label{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted)}
+.price-value{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.5px}
+.price-change{font-size:12px;font-weight:500}
+.price-change.up{color:var(--green)}.price-change.down{color:var(--red)}
+.feature-badge{
+  width:100%;
+  background:linear-gradient(135deg,rgba(240,180,41,.1),rgba(240,180,41,.04));
+  border:1px solid rgba(240,180,41,.25);border-radius:8px;
+  padding:12px 16px;display:flex;align-items:center;gap:12px;
+}
+.feature-badge-icon{font-size:22px;flex-shrink:0}
+.feature-badge strong{display:block;font-size:13px;color:var(--yellow);margin-bottom:3px}
+.feature-badge span{font-size:11px;color:var(--muted);line-height:1.6}
+.bots{width:100%;display:flex;flex-direction:column;gap:12px}
+.bot-btn{
+  display:flex;align-items:center;gap:16px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:12px;
+  padding:18px 20px;text-decoration:none;color:var(--text);
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.bot-btn::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s}
+.bot-btn.eth::before{background:linear-gradient(135deg,rgba(79,142,247,.08),transparent)}
+.bot-btn.beat::before{background:linear-gradient(135deg,rgba(168,85,247,.08),transparent)}
+.bot-btn:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.bot-btn:hover::before{opacity:1}
+.bot-icon{
+  width:48px;height:48px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:13px;font-weight:800;
+  flex-shrink:0;position:relative;z-index:1;
+}
+.bot-btn.eth  .bot-icon{background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.3)}
+.bot-btn.beat .bot-icon{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)}
+.bot-info{flex:1;position:relative;z-index:1}
+.bot-name{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px}
+.bot-desc{font-size:11px;color:var(--muted);line-height:1.7}
+.dot-live{display:inline-block;width:6px;height:6px;background:var(--green);border-radius:50%;margin-right:5px;vertical-align:middle;animation:pulse 2s ease-in-out infinite}
+.bot-arrow{font-size:18px;color:var(--dim);transition:color .2s,transform .2s;position:relative;z-index:1}
+.bot-btn:hover .bot-arrow{color:var(--muted);transform:translateX(3px)}
+.features{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.features-head{padding:10px 16px;border-bottom:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim)}
+.features-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.feat-item{
+  display:flex;align-items:center;gap:8px;padding:10px 16px;
+  font-size:11px;color:var(--muted);
+  border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+}
+.feat-item:nth-child(even){border-right:none}
+.feat-item:nth-last-child(-n+2){border-bottom:none}
+.feat-icon{font-size:14px;flex-shrink:0}
+.footer{font-size:10px;color:var(--dim);text-align:center;line-height:1.9}
+.footer a{color:var(--accent);text-decoration:none}
+.footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>Crypto<span>Bots</span></h1>
+    <p>investcryptoWhite · Signal Dashboard</p>
+  </div>
+
+  <div class="status-bar">
+    <div class="sb-live"><div class="sb-dot"></div>Date live · Binance API</div>
+    <div class="sb-time" id="sbTime">—</div>
+  </div>
+
+  <div class="prices">
+    <div class="price-card">
+      <div class="price-label">ETH / USDC</div>
+      <div class="price-value" id="ethPrice">—</div>
+      <div class="price-change" id="ethChange">—</div>
+    </div>
+    <div class="price-card">
+      <div class="price-label">BEAT / USDT</div>
+      <div class="price-value" id="beatPrice">—</div>
+      <div class="price-change" id="beatChange">—</div>
+    </div>
+  </div>
+
+  <div class="feature-badge">
+    <div class="feature-badge-icon">📊</div>
+    <div>
+      <strong>Tranzacție deschisă — P&amp;L Live</strong>
+      <span>Introdu data, USD investiți, leverage și prețul de achiziție.<br>
+      P&amp;L calculat automat în timp real · Date salvate local în browser.</span>
+    </div>
+  </div>
+
+  <div class="bots">
+    <a class="bot-btn eth" href="eth_usdc_bot.html">
+      <div class="bot-icon">ETH</div>
+      <div class="bot-info">
+        <div class="bot-name">ETH / USDC</div>
+        <div class="bot-desc">
+          <span class="dot-live"></span>Binance Spot · Date live<br>
+          7 indicatori · MACD · StochRSI · BB · RSI · Momentum · EMA9 · Volume
+        </div>
+      </div>
+      <div class="bot-arrow">→</div>
+    </a>
+
+    <a class="bot-btn beat" href="beat_usdt_bot.html">
+      <div class="bot-icon">BEAT</div>
+      <div class="bot-info">
+        <div class="bot-name">BEAT / USDT</div>
+        <div class="bot-desc">
+          <span class="dot-live"></span>Binance Futures Perpetual · Date live<br>
+          7 indicatori · MACD · StochRSI · BB · RSI · Momentum · EMA9 · Volume
+        </div>
+      </div>
+      <div class="bot-arrow">→</div>
+    </a>
+  </div>
+
+  <div class="features">
+    <div class="features-head">Funcționalități incluse</div>
+    <div class="features-grid">
+      <div class="feat-item"><span class="feat-icon">📈</span>7 indicatori tehnici</div>
+      <div class="feat-item"><span class="feat-icon">💰</span>P&amp;L live cu leverage</div>
+      <div class="feat-item"><span class="feat-icon">🔔</span>Notificări ntfy push</div>
+      <div class="feat-item"><span class="feat-icon">⚡</span>Auto-refresh configurabil</div>
+      <div class="feat-item"><span class="feat-icon">📊</span>Grafic mini + TradingView</div>
+      <div class="feat-item"><span class="feat-icon">🎯</span>Calculator SL / TP / profit</div>
+      <div class="feat-item"><span class="feat-icon">💾</span>Jurnal tranzacții local</div>
+      <div class="feat-item"><span class="feat-icon">📱</span>Mobil, tabletă, PC</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    ⚠ Semnale informative · Nu execută tranzacții automat · Nu constituie consiliere financiară<br>
+    <a href="https://github.com/investcryptoWhite/trading-bot" target="_blank">github.com/investcryptoWhite/trading-bot</a>
+  </div>
+
+</div>
+<script>
+function tick(){
+  document.getElementById('sbTime').textContent=new Date().toLocaleTimeString('ro-RO')+' · refresh 30s';
+}
+tick();setInterval(tick,1000);
+
+function fetchXHR(url){
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();x.open('GET',url,true);
+    x.onload=()=>x.status>=200&&x.status<300?res(JSON.parse(x.responseText)):rej(x.status);
+    x.onerror=()=>rej('err');x.send();
+  });
+}
+
+async function loadPrices(){
+  try{
+    const d=await fetchXHR('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDC');
+    const p=parseFloat(d.lastPrice),c=parseFloat(d.priceChangePercent);
+    document.getElementById('ethPrice').textContent='$'+p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('ethChange').textContent=(c>=0?'+':'')+c.toFixed(2)+'%';
+    document.getElementById('ethChange').className='price-change '+(c>=0?'up':'down');
+  }catch(e){document.getElementById('ethPrice').textContent='—';}
+
+  try{
+    const d=await fetchXHR('https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BEATUSDT');
+    const p=parseFloat(d.lastPrice),c=parseFloat(d.priceChangePercent);
+    document.getElementById('beatPrice').textContent='$'+p.toFixed(4);
+    document.getElementById('beatChange').textContent=(c>=0?'+':'')+c.toFixed(2)+'%';
+    document.getElementById('beatChange').className='price-change '+(c>=0?'up':'down');
+  }catch(e){document.getElementById('beatPrice').textContent='—';}
+}
+
+loadPrices();setInterval(loadPrices,30000);
+</script>
+</body>
+</html>
