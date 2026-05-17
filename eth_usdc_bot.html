@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETH/USDC Signal Bot · Binance</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0c0f;
+    --bg2:      #0f1217;
+    --bg3:      #151a22;
+    --border:   rgba(255,255,255,0.07);
+    --border2:  rgba(255,255,255,0.13);
+    --text:     #e2e8f0;
+    --muted:    #6b7a90;
+    --dim:      #3a4455;
+    --green:    #00d68f;
+    --green2:   #00a86b;
+    --red:      #ff4d6a;
+    --red2:     #cc2d47;
+    --yellow:   #f0b429;
+    --cyan:     #38bdf8;
+    --accent:   #4f8ef7;
+    --mono:     'JetBrains Mono', monospace;
+    --display:  'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.04) 2px,
+      rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,142,247,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-area h1 {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+  .logo-area h1 span { color: var(--cyan); }
+
+  .logo-area p {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .live-price-box {
+    text-align: right;
+  }
+  .live-price {
+    font-family: var(--display);
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+  }
+  .live-price-change {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .live-price-change.up   { color: var(--green); }
+  .live-price-change.down { color: var(--red); }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    justify-content: flex-end;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background .3s;
+  }
+  .dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
+  .dot.running { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-text { font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+
+  /* ── Metrics row ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .metric {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+  .metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .metric-value { font-family: var(--display); font-size: 22px; font-weight: 700; color: #fff; }
+  .metric-sub   { font-size: 10px; color: var(--dim); margin-top: 3px; }
+
+  /* ── Two-column layout ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  /* ── Panels ── */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-head .ph-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .panel-body { padding: 16px; }
+
+  /* ── Config fields ── */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  select, input[type="number"] {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color .2s;
+    appearance: none;
+  }
+  select:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+  }
+  select option { background: var(--bg3); }
+
+  .range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+    outline: none;
+    border: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  .range-val {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--cyan);
+    min-width: 44px;
+    text-align: right;
+  }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── Run button ── */
+  .run-btn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 11px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .run-btn:hover {
+    background: rgba(79,142,247,.12);
+    border-color: var(--cyan);
+    color: var(--cyan);
+  }
+  .run-btn:active { transform: scale(.98); }
+  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .loop-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .loop-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+  .loop-btn.active-loop { border-color: var(--yellow); color: var(--yellow); background: rgba(240,180,41,.07); }
+
+  /* ── Indicators ── */
+  .ind-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+    animation: fadeRow .3s ease both;
+  }
+  .ind-row:last-child { border-bottom: none; padding-bottom: 0; }
+  @keyframes fadeRow { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform: none; } }
+
+  .ind-name {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .ind-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  .sig-badge {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    border: 1px solid transparent;
+  }
+  .sig-buy  { background: rgba(0,214,143,.1); color: var(--green); border-color: rgba(0,214,143,.25); }
+  .sig-sell { background: rgba(255,77,106,.1); color: var(--red);   border-color: rgba(255,77,106,.25); }
+  .sig-neu  { background: rgba(107,122,144,.1); color: var(--muted); border-color: rgba(107,122,144,.2); }
+
+  /* ── Signal panel ── */
+  .signal-main-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .signal-label {
+    font-family: var(--display);
+    font-size: 26px;
+    font-weight: 800;
+  }
+  .signal-label.buy  { color: var(--green); }
+  .signal-label.sell { color: var(--red);   }
+  .signal-label.neu  { color: var(--muted); }
+
+  .signal-score-text { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.7; }
+
+  .score-track {
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .5s cubic-bezier(.4,0,.2,1), background .3s;
+  }
+
+  /* ── Trade summary ── */
+  .trade-box {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .trade-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 12px;
+  }
+  .trade-row .tk { color: var(--muted); }
+  .trade-row .tv { color: var(--text); font-weight: 500; }
+  .trade-row .tv.green { color: var(--green); }
+  .trade-row .tv.red   { color: var(--red);   }
+  .trade-row .tv.cyan  { color: var(--cyan);  }
+
+  /* ── Chart mini ── */
+  .chart-wrap {
+    position: relative;
+    height: 120px;
+    margin-bottom: 14px;
+  }
+  #miniChart { width: 100%; height: 100%; }
+
+  /* ── Log ── */
+  .log-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .log-body {
+    height: 160px;
+    overflow-y: auto;
+    padding: 10px 14px;
+    font-size: 11px;
+    line-height: 1.9;
+  }
+  .log-body::-webkit-scrollbar { width: 4px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  .log-entry { display: flex; gap: 12px; }
+  .log-ts  { color: var(--dim); flex-shrink: 0; }
+  .log-buy  { color: var(--green); }
+  .log-sell { color: var(--red);   }
+  .log-info { color: var(--muted); }
+  .log-warn { color: var(--yellow); }
+
+  /* ── Disclaimer ── */
+  .disclaimer {
+    margin-top: 24px;
+    font-size: 10px;
+    color: var(--dim);
+    line-height: 1.7;
+    text-align: center;
+    letter-spacing: .02em;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 680px) {
+    .main-grid  { grid-template-columns: 1fr; }
+    .metrics    { grid-template-columns: repeat(2, 1fr); }
+    .live-price { font-size: 24px; }
+    .logo-area h1 { font-size: 22px; }
+  }
+
+  /* ── Tranzacție deschisă ── */
+  .trade-section {
+    margin-top: 20px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .trade-section .panel-head {
+    background: linear-gradient(90deg, rgba(240,180,41,0.12), transparent);
+    border-bottom: 1px solid rgba(240,180,41,0.2);
+  }
+  .trade-section .panel-head .ph-dot { background: var(--yellow); }
+  .trade-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    padding: 16px;
+  }
+  .ti-group { display: flex; flex-direction: column; gap: 5px; }
+  .ti-group label { font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+  .ti-group input, .ti-group select {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  .ti-group input:focus, .ti-group select:focus { border-color: var(--yellow); }
+  .trade-actions { display: flex; gap: 10px; padding: 0 16px 16px; flex-wrap: wrap; }
+  .btn-trade-add {
+    background: linear-gradient(135deg, var(--yellow), #c87f00);
+    color: #0a0c0f; border: none; border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; padding: 9px 20px; cursor: pointer;
+    text-transform: uppercase; transition: opacity .2s;
+  }
+  .btn-trade-add:hover { opacity: .85; }
+  .btn-trade-clr {
+    background: transparent; border: 1px solid var(--border2); border-radius: 6px;
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    padding: 9px 16px; cursor: pointer; transition: border-color .2s, color .2s;
+  }
+  .btn-trade-clr:hover { border-color: var(--red); color: var(--red); }
+  .trade-list { border-top: 1px solid var(--border); max-height: 280px; overflow-y: auto; }
+  .trade-row-head {
+    font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim);
+    padding: 8px 16px; border-bottom: 1px solid var(--border);
+    display: grid; grid-template-columns: 110px 75px 55px 95px 100px 1fr 36px; gap: 8px;
+  }
+  .trade-row {
+    display: grid; grid-template-columns: 110px 75px 55px 95px 100px 1fr 36px;
+    gap: 8px; align-items: center; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); font-size: 12px; transition: background .15s;
+  }
+  .trade-row:hover { background: rgba(255,255,255,0.02); }
+  .tr-pnl-pos { color: var(--green); font-weight: 700; }
+  .tr-pnl-neg { color: var(--red); font-weight: 700; }
+  .tr-del {
+    background: transparent; border: 1px solid var(--border2); border-radius: 4px;
+    color: var(--dim); cursor: pointer; font-size: 12px; padding: 3px 7px; transition: all .15s;
+  }
+  .tr-del:hover { border-color: var(--red); color: var(--red); }
+  .trade-summary {
+    display: flex; gap: 24px; padding: 12px 16px;
+    border-top: 1px solid var(--border); background: rgba(0,0,0,.2); flex-wrap: wrap;
+  }
+  .ts-item { display: flex; flex-direction: column; gap: 2px; }
+  .ts-label { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); }
+  .ts-val { font-size: 15px; font-weight: 700; }
+  @media(max-width:600px){
+    .trade-row,.trade-row-head{ grid-template-columns: repeat(3,1fr); }
+  }
+
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+
+  /* ── Auth / User ─────────────────────────────────────── */
+  .auth-bar {
+    position: fixed;
+    top: 0; right: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(10,12,15,0.92);
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    border-radius: 0 0 0 10px;
+    backdrop-filter: blur(10px);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .auth-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+    flex-shrink: 0; cursor: default;
+    border: 1.5px solid rgba(255,255,255,0.15);
+  }
+  .auth-name {
+    color: var(--text);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .auth-sync {
+    font-size: 10px;
+    color: var(--green);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .auth-sync.offline { color: var(--dim); }
+  .auth-sync-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .btn-auth-login {
+    background: linear-gradient(135deg, #4285f4, #1a73e8);
+    color: #fff; border: none; border-radius: 5px;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    padding: 5px 12px; cursor: pointer; letter-spacing: .05em;
+    display: flex; align-items: center; gap: 5px;
+    transition: opacity .2s;
+  }
+  .btn-auth-login:hover { opacity: .9; }
+  .btn-auth-logout {
+    background: transparent;
+    border: 1px solid var(--border2); border-radius: 5px;
+    color: var(--muted); font-family: var(--mono);
+    font-size: 10px; padding: 4px 10px; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-auth-logout:hover { border-color: var(--red); color: var(--red); }
+  .auth-spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  body { padding-top: 52px !important; }
+
+  .ts-val-liq { color: var(--yellow, #f0b429); }
+</style>
+</head>
+<body>
+
+  <!-- Auth Bar -->
+  <div class="auth-bar" id="authBar">
+    <div class="auth-spinner" id="authSpinner"></div>
+    <span style="color:var(--dim);font-size:10px" id="authStatus">Se conectează…</span>
+  </div>
+
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-area">
+      <h1>ETH<span>/USDC</span></h1>
+      <p>Signal Bot · Binance Spot · Live Data</p>
+    </div>
+    <div class="live-price-box">
+      <div class="live-price" id="livePrice">—</div>
+      <div class="live-price-change" id="priceChange">—</div>
+      <div class="status-row">
+        <div class="dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">INACTIV</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Interval</div>
+      <div class="metric-value" id="mInterval">—</div>
+      <div class="metric-sub">timeframe selectat</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Scor semnal</div>
+      <div class="metric-value" id="mScore">—</div>
+      <div class="metric-sub">din 7 indicatori</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Semnal</div>
+      <div class="metric-value" id="mSignal" style="font-size:18px">—</div>
+      <div class="metric-sub" id="mSignalTime">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Analize</div>
+      <div class="metric-value" id="mRuns">0</div>
+      <div class="metric-sub">în sesiunea curentă</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+
+    <!-- Left: Config -->
+    <div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head"><div class="ph-dot"></div>Configurare</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Interval (Timeframe)</label>
+            <select id="cfgInterval">
+              <option value="1m">1 minut</option>
+              <option value="3m">3 minute</option>
+              <option value="5m">5 minute</option>
+              <option value="15m" selected>15 minute</option>
+              <option value="30m">30 minute</option>
+              <option value="1h">1 oră</option>
+              <option value="2h">2 ore</option>
+              <option value="4h">4 ore</option>
+              <option value="1d">1 zi</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Capital investit (USDC)</label>
+            <input type="number" id="cfgCapital" value="100" min="10" step="10">
+          </div>
+          <div class="field">
+            <label>Preț de intrare (USDC) — 0 = preț curent</label>
+            <input type="number" id="cfgEntry" value="0" min="0" step="0.01" placeholder="0 = preț curent">
+          </div>
+          <div class="field">
+            <label>Leverage (x)</label>
+            <div class="range-wrap">
+              <input type="range" id="cfgLev" min="1" max="50" step="1" value="1">
+              <span class="range-val" id="cfgLevVal">1×</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Profit dorit (USDC)</label>
+            <input type="number" id="cfgProfit" value="10" min="0.1" step="0.5" placeholder="ex: 10">
+            <div id="cfgExitCalc" style="margin-top:8px;background:rgba(0,0,0,0.2);border:1px solid var(--border2);border-radius:5px;padding:8px 10px;display:none;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Preț ieșire necesar</span>
+                <span style="font-size:16px;font-weight:700;color:var(--green);font-family:'Syne',sans-serif" id="cfgExitPrice">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:10px;color:var(--muted);">Variație necesară</span>
+                <span style="font-size:12px;color:var(--green)" id="cfgExitPct">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:var(--muted);">Valoare poziție</span>
+                <span style="font-size:12px;color:var(--cyan)" id="cfgPosVal">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,77,106,0.2);">
+                <span style="font-size:10px;color:#ff4d6a;text-transform:uppercase;letter-spacing:.06em;">⚠ Preț lichidare</span>
+                <span style="font-size:14px;font-weight:700;color:#ff4d6a" id="cfgLiqPrice">—</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Stop Loss</label>
+            <div class="range-wrap">
+              <input type="range" id="cfgSL" min="0.5" max="10" step="0.5" value="2">
+              <span class="range-val" id="cfgSLVal">2.0%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Take Profit</label>
+            <div class="range-wrap">
+              <input type="range" id="cfgTP" min="1" max="20" step="0.5" value="4">
+              <span class="range-val" id="cfgTPVal">4.0%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Prag semnal (din 7 indicatori)</label>
+            <div class="range-wrap">
+              <input type="range" id="cfgThresh" min="2" max="7" step="1" value="5">
+              <span class="range-val" id="cfgThreshVal">5 / 7</span>
+            </div>
+          </div>
+          <button class="run-btn" id="runBtn" onclick="runAnalysis()">
+            ▶ ANALIZEAZĂ ACUM
+          </button>
+          <button class="loop-btn" id="loopBtn" onclick="toggleLoop()">
+            ↻ AUTO-REFRESH: OFF
+          </button>
+          <div class="field" style="margin-top:10px;">
+            <label>Interval auto-refresh</label>
+            <select id="cfgRefresh">
+              <option value="30">30 secunde</option>
+              <option value="60" selected>1 minut</option>
+              <option value="120">2 minute</option>
+              <option value="300">5 minute</option>
+              <option value="600">10 minute</option>
+              <option value="900">15 minute</option>
+              <option value="1800">30 minute</option>
+              <option value="3600">1 oră</option>
+              <option value="14400">4 ore</option>
+            </select>
+          </div>
+
+          <div style="margin-top:16px;border-top:1px solid var(--border-secondary,rgba(255,255,255,0.07));padding-top:14px;">
+            <div class="field">
+              <label>🔔 Notificări ntfy — Topic</label>
+              <input type="text" id="ntfyTopic" placeholder="ex: ethbot-alex123" style="width:100%;background:var(--color-background-secondary,#151a22);border:1px solid rgba(255,255,255,0.13);border-radius:5px;color:var(--color-text-primary,#e2e8f0);font-family:'JetBrains Mono',monospace;font-size:13px;padding:8px 10px;outline:none;">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <button onclick="testNtfy()" style="flex:1;padding:8px;background:transparent;border:1px solid rgba(255,255,255,0.13);border-radius:5px;color:#6b7a90;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#f0b429';this.style.color='#f0b429'" onmouseout="this.style.borderColor='rgba(255,255,255,0.13)';this.style.color='#6b7a90'">
+                🔔 Test notificare
+              </button>
+              <div id="ntfyStatus" style="font-size:11px;color:#6b7a90;padding:0 6px;">—</div>
+            </div>
+            <div style="margin-top:6px;font-size:10px;color:#3a4455;line-height:1.6;">
+              Primești notificare pe telefon la fiecare semnal BUY/SELL.<br>Topic = parola ta secretă — alege ceva unic greu de ghicit.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Indicators + Signal -->
+    <div>
+
+      <!-- Mini price chart -->
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head"><div class="ph-dot"></div>Prețuri recente (ultimele 50 lumânări)</div>
+        <div class="panel-body" style="padding:12px 14px">
+          <div class="chart-wrap">
+            <canvas id="miniChart"></canvas>
+          </div>
+          <div style="display:flex;gap:16px;font-size:10px;color:var(--muted)">
+            <span>EMA 9: <span id="chartEma9" style="color:rgba(240,180,41,0.8)">—</span></span>
+            <span>BB: <span id="chartEma21" style="color:rgba(167,139,250,0.8)">—</span></span>
+            <span>Vol ratio: <span id="chartVolRatio" style="color:var(--text)">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Indicators -->
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head"><div class="ph-dot"></div>Indicatori tehnici</div>
+        <div class="panel-body" style="padding:0 16px">
+          <div class="ind-row" style="animation-delay:.05s">
+            <div><div class="ind-name">MACD</div><div class="ind-desc" id="dMACD">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sMACD">—</span>
+          </div>
+          <div class="ind-row" style="animation-delay:.1s">
+            <div><div class="ind-name">Stochastic RSI</div><div class="ind-desc" id="dStoch">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sStoch">—</span>
+          </div>
+          <div class="ind-row" style="animation-delay:.15s">
+            <div><div class="ind-name">Volume</div><div class="ind-desc" id="dVol">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sVol">—</span>
+          </div>
+          <div class="ind-row" style="animation-delay:.3s">
+            <div><div class="ind-name">RSI (14)</div><div class="ind-desc" id="dRSI">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sRSI">—</span>
+          </div>
+          <div class="ind-row" style="animation-delay:.35s">
+            <div><div class="ind-name">Bollinger Bands</div><div class="ind-desc" id="dBB">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sBB">—</span>
+          </div>
+          <div class="ind-row" style="animation-delay:.4s">
+            <div><div class="ind-name">Momentum (ROC 10)</div><div class="ind-desc" id="dMom">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sMom">—</span>
+          </div>
+          <div class="ind-row" style="animation-delay:.45s">
+            <div><div class="ind-name">EMA 9</div><div class="ind-desc" id="dEma50">Așteptare analiză...</div></div>
+            <span class="sig-badge sig-neu" id="sEma50">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aggregated signal -->
+      <div class="panel">
+        <div class="panel-head"><div class="ph-dot"></div>Semnal agregat</div>
+        <div class="panel-body">
+          <div class="signal-main-box">
+            <div class="signal-label neu" id="aggSignal">RULEAZĂ ANALIZA</div>
+            <div class="signal-score-text" id="aggDetail">—</div>
+          </div>
+          <div class="score-track">
+            <div class="score-fill" id="scoreFill" style="width:0%;background:var(--dim)"></div>
+          </div>
+          <div class="trade-box" id="tradeBox" style="display:none">
+            <div class="trade-row"><span class="tk">Preț intrare</span><span class="tv cyan" id="tEntry">—</span></div>
+            <div class="trade-row"><span class="tk">Leverage</span><span class="tv" id="tLev">—</span></div>
+            <div class="trade-row"><span class="tk">Valoare poziție</span><span class="tv" id="tPos">—</span></div>
+            <div class="trade-row"><span class="tk">Stop Loss</span><span class="tv red" id="tSL">—</span></div>
+            <div class="trade-row"><span class="tk">Take Profit (SL/TP %)</span><span class="tv green" id="tTP">—</span></div>
+            <div class="trade-row" style="border-top:1px solid rgba(255,255,255,0.07);margin-top:6px;padding-top:8px"><span class="tk">🎯 Profit dorit</span><span class="tv" style="color:#f0b429" id="tProfitTarget">—</span></div>
+            <div class="trade-row"><span class="tk">Preț ieșire profit</span><span class="tv green" id="tExitPrice">—</span></div>
+            <div class="trade-row"><span class="tk">Variație necesară</span><span class="tv" id="tExitPct">—</span></div>
+            <div class="trade-row" style="border-top:1px solid rgba(255,77,106,0.2);margin-top:6px;padding-top:8px"><span class="tk" style="color:#ff4d6a">⚠ Preț lichidare</span><span class="tv" style="color:#ff4d6a" id="tLiqPrice">—</span></div>
+            <div class="trade-row"><span class="tk">Cantitate ETH</span><span class="tv" id="tQty">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-wrap">
+    <div class="panel-head"><div class="ph-dot"></div>Jurnal sesiune</div>
+    <div class="log-body" id="logBody">
+      <div class="log-entry"><span class="log-ts">--:--:--</span><span class="log-info">Bot inițializat. Configurează parametrii și apasă ANALIZEAZĂ ACUM.</span></div>
+    </div>
+  </div>
+
+  
+  <!-- ── Tranzacție deschisă ── -->
+  <div class="trade-section">
+    <div class="panel-head"><div class="ph-dot"></div>📊 Tranzacție deschisă — P&amp;L Live</div>
+    <div class="trade-inputs">
+      <div class="ti-group"><label>Data intrare</label><input type="datetime-local" id="trDate"></div>
+      <div class="ti-group"><label>USD Investiți</label><input type="number" id="trUsd" placeholder="ex: 100" min="0" step="any"></div>
+      <div class="ti-group"><label>Leverage</label><input type="number" id="trLev" placeholder="ex: 5" min="1" max="125" step="1" value="1"></div>
+      <div class="ti-group"><label>Preț achiziție</label><input type="number" id="trBuy" placeholder="ex: 2500" step="any" min="0"></div>
+      <div class="ti-group"><label>Tip poziție</label>
+        <select id="trDir">
+          <option value="LONG">LONG ▲</option>
+          <option value="SHORT">SHORT ▼</option>
+        </select>
+      </div>
+    </div>
+    <div class="trade-actions">
+      <button class="btn-trade-add" onclick="addTrade()">+ Adaugă tranzacție</button>
+      <button class="btn-trade-clr" onclick="clearAllTrades()">✕ Șterge toate</button>
+    </div>
+    <div class="trade-row-head">
+      <span>Data</span><span>USD inv.</span><span>Lev</span><span>Preț acq.</span><span>Lichidare</span><span>Preț curent</span><span>P&amp;L</span><span></span>
+    </div>
+    <div class="trade-list" id="tradeList"></div>
+    <div class="trade-summary" id="tradeSummary" style="display:none">
+      <div class="ts-item"><span class="ts-label">Total investit</span><span class="ts-val" id="tsInvested">—</span></div>
+      <div class="ts-item"><span class="ts-label">P&amp;L total</span><span class="ts-val" id="tsPnl">—</span></div>
+      <div class="ts-item"><span class="ts-label">ROI cu leverage</span><span class="ts-val" id="tsRoi">—</span></div>
+      <div class="ts-item"><span class="ts-label">Cel mai aproape de lichidare</span><span class="ts-val" id="tsLiq">—</span></div>
+    </div>
+  </div>
+
+  <!-- TradingView Interactive Chart -->
+  <div style="margin-top:20px;">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--accent)"></div>
+          Grafic TradingView — ETH/USDC
+        </div>
+        <a href="https://www.tradingview.com/chart/?symbol=BINANCE:ETHUSDC" target="_blank"
+           style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;background:transparent;border:1px solid #4f8ef7;border-radius:5px;color:#4f8ef7;font-family:var(--mono);font-size:11px;font-weight:600;text-decoration:none;letter-spacing:.05em;transition:all .2s;"
+           onmouseover="this.style.background='rgba(255,255,255,0.06)'"
+           onmouseout="this.style.background='transparent'">
+          ✏️ Deschide cu linii →
+        </a>
+      </div>
+      <div class="tradingview-widget-container" style="height:500px;">
+        <div style="padding:8px 14px;background:rgba(255,255,255,0.03);font-size:10px;color:var(--dim);border-bottom:1px solid var(--border);">
+          ℹ️ Pentru a trasa linii direct aici: creează cont gratuit pe TradingView și autentifică-te. Sau apasă <strong style="color:var(--accent, #4f8ef7)">Deschide cu linii →</strong> pentru graficul complet în tab nou.
+        </div>
+        <div id="tradingview_eth" style="height:460px;"></div>
+          <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+        <script type="text/javascript">
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "BINANCE:ETHUSDC",
+          "interval": "60",
+          "timezone": "Europe/Bucharest",
+          "theme": "dark",
+          "style": "1",
+          "locale": "ro",
+          "toolbar_bg": "#0f1217",
+          "enable_publishing": false,
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "save_image": true,
+          "container_id": "tradingview_eth",
+          "studies": [
+            "RSI@tv-basicstudies",
+            "BB@tv-basicstudies",
+            "MACD@tv-basicstudies"
+          ],
+          "show_popup_button": true,
+          "popup_width": "1000",
+          "popup_height": "650"
+        });
+        </script>
+      </div>
+    </div>
+  </div>
+
+<p class="disclaimer">
+    ⚠ Bot de semnale informative. Nu execută tranzacții automat. Nu constituie consiliere financiară.<br>
+    Tranzacționarea crypto implică riscuri semnificative. Datele sunt preluate în timp real de pe Binance API (read-only, fără cheie API).
+  </p>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── Config controls ──────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+$('cfgSL').oninput     = () => { $('cfgSLVal').textContent = parseFloat($('cfgSL').value).toFixed(1) + '%'; calcProfitExit(); };
+$('cfgTP').oninput     = () => { $('cfgTPVal').textContent = parseFloat($('cfgTP').value).toFixed(1) + '%'; calcProfitExit(); };
+$('cfgThresh').oninput = () => $('cfgThreshVal').textContent = $('cfgThresh').value + ' / 7';
+$('cfgLev').oninput    = () => { $('cfgLevVal').textContent = $('cfgLev').value + '×'; calcProfitExit(); };
+$('cfgEntry').oninput  = () => calcProfitExit();
+$('cfgCapital').oninput= () => calcProfitExit();
+$('cfgProfit').oninput = () => calcProfitExit();
+
+// ── Binance API ──────────────────────────────────────────────────────────────
+const PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxy(url) {
+  try {
+    const r = await fetch(url, {signal: AbortSignal.timeout(5000)});
+    if (r.ok) return r;
+  } catch(e) {}
+  for (const proxy of PROXIES) {
+    try {
+      const r = await fetch(proxy(url), {signal: AbortSignal.timeout(8000)});
+      if (r.ok) return r;
+    } catch(e) {}
+  }
+  throw new Error('Nu se poate conecta la Binance. Verifică conexiunea.');
+}
+
+async function fetchKlines(symbol, interval, limit = 200) {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const r = await fetchWithProxy(url);
+  if (!r.ok) throw new Error(`Binance API ${r.status}: ${r.statusText}`);
+  const raw = await r.json();
+  return raw.map(k => ({
+    openTime:  k[0],
+    open:      parseFloat(k[1]),
+    high:      parseFloat(k[2]),
+    low:       parseFloat(k[3]),
+    close:     parseFloat(k[4]),
+    volume:    parseFloat(k[5]),
+    closeTime: k[6],
+  }));
+}
+
+async function fetchTicker(symbol) {
+  const r = await fetchWithProxy(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
+  return r.json();
+}
+
+// ── Math helpers ─────────────────────────────────────────────────────────────
+function ema(arr, period) {
+  const k = 2 / (period + 1);
+  const out = new Array(arr.length).fill(NaN);
+  let e = arr[0];
+  out[0] = e;
+  for (let i = 1; i < arr.length; i++) {
+    e = arr[i] * k + e * (1 - k);
+    out[i] = e;
+  }
+  return out;
+}
+
+function rsi(closes, period = 14) {
+  const out = new Array(closes.length).fill(NaN);
+  let avgG = 0, avgL = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i-1];
+    if (d > 0) avgG += d; else avgL -= d;
+  }
+  avgG /= period; avgL /= period;
+  out[period] = 100 - 100 / (1 + avgG / (avgL || 1e-10));
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i-1];
+    const g = d > 0 ? d : 0, l = d < 0 ? -d : 0;
+    avgG = (avgG * (period - 1) + g) / period;
+    avgL = (avgL * (period - 1) + l) / period;
+    out[i] = 100 - 100 / (1 + avgG / (avgL || 1e-10));
+  }
+  return out;
+}
+
+function stochRsi(closes, rsiPeriod=14, stochPeriod=14, kSmooth=3, dSmooth=3) {
+  const r = rsi(closes, rsiPeriod);
+  const k = new Array(r.length).fill(NaN);
+  const d = new Array(r.length).fill(NaN);
+  for (let i = stochPeriod - 1; i < r.length; i++) {
+    const slice = r.slice(i - stochPeriod + 1, i + 1).filter(v => !isNaN(v));
+    if (!slice.length) continue;
+    const min = Math.min(...slice), max = Math.max(...slice);
+    k[i] = max === min ? 50 : 100 * (r[i] - min) / (max - min);
+  }
+  const kSmoothed = ema(k.map(v => isNaN(v) ? 50 : v), kSmooth);
+  const dSmoothed = ema(kSmoothed, dSmooth);
+  return { k: kSmoothed, d: dSmoothed };
+}
+
+function macd(closes, fast=12, slow=26, sig=9) {
+  const ef = ema(closes, fast), es = ema(closes, slow);
+  const line = ef.map((v, i) => v - es[i]);
+  const signal = ema(line, sig);
+  const hist = line.map((v, i) => v - signal[i]);
+  return { line, signal, hist };
+}
+
+function rollingAvg(arr, window) {
+  return arr.map((_, i) => {
+    if (i < window - 1) return NaN;
+    const sl = arr.slice(i - window + 1, i + 1);
+    return sl.reduce((a, b) => a + b, 0) / sl.length;
+  });
+}
+
+// ── Analysis ─────────────────────────────────────────────────────────────────
+
+// ── RSI ───────────────────────────────────────────────────────────
+function calcRsiArr(closes, period=14) {
+  const out = new Array(closes.length).fill(NaN);
+  let ag=0, al=0;
+  for(let i=1;i<=period;i++){const d=closes[i]-closes[i-1];d>0?ag+=d:al-=d;}
+  ag/=period; al/=period;
+  out[period]=100-100/(1+ag/Math.max(al,1e-10));
+  for(let i=period+1;i<closes.length;i++){
+    const d=closes[i]-closes[i-1],g=d>0?d:0,l=d<0?-d:0;
+    ag=(ag*(period-1)+g)/period; al=(al*(period-1)+l)/period;
+    out[i]=100-100/(1+ag/Math.max(al,1e-10));
+  }
+  return out;
+}
+
+// ── Bollinger Bands ───────────────────────────────────────────────
+function calcBB(closes, period=20, mult=2) {
+  const upper=[], middle=[], lower=[];
+  for(let i=0;i<closes.length;i++){
+    if(i<period-1){upper.push(NaN);middle.push(NaN);lower.push(NaN);continue;}
+    const sl=closes.slice(i-period+1,i+1);
+    const avg=sl.reduce((a,b)=>a+b,0)/period;
+    const std=Math.sqrt(sl.reduce((s,v)=>s+(v-avg)**2,0)/period);
+    middle.push(avg);
+    upper.push(avg+mult*std);
+    lower.push(avg-mult*std);
+  }
+  return {upper,middle,lower};
+}
+
+
+// ── Momentum (ROC) ───────────────────────────────────────────────
+function calcMomentum(closes, period=10) {
+  return closes.map((v,i) => i < period ? NaN : ((v - closes[i-period]) / closes[i-period]) * 100);
+}
+function analyze(klines) {
+  const closes  = klines.map(k => k.close);
+  const volumes = klines.map(k => k.volume);
+  const n = closes.length;
+
+  const ema9arr  = ema(closes, 9);
+  const ema21arr = ema(closes, 21);
+  const { line: macdLine, signal: macdSig, hist: macdHist } = macd(closes);
+  const { k: stochK } = stochRsi(closes);
+  const avgVol = rollingAvg(volumes, 20);
+  const rsiArr  = calcRsiArr(closes, 14);
+  const bb      = calcBB(closes, 20, 2);
+  const momArr  = calcMomentum(closes, 10);
+  const ema50arr= ema(closes, 9);  // EMA 9 (înlocuiește EMA50)
+
+  const price   = closes[n-1];
+  const e9      = ema9arr[n-1];
+  const e21     = ema21arr[n-1];
+  const ml      = macdLine[n-1];
+  const ms      = macdSig[n-1];
+  const mh      = macdHist[n-1];
+  const mhPrev  = macdHist[n-2];
+  const sk      = stochK[n-1];
+  const skPrev  = stochK[n-2];
+  const curVol  = volumes[n-1];
+  const avgV    = avgVol[n-1];
+  const vr      = curVol / (avgV || 1);
+  const rsiVal  = rsiArr[n-1];
+  const rsiPrev = rsiArr[n-2]||rsiVal;
+  const bbUpper = bb.upper[n-1];
+  const bbMiddle= bb.middle[n-1];
+  const bbLower = bb.lower[n-1];
+  const bbWidth = bbUpper && bbLower ? ((bbUpper-bbLower)/bbMiddle*100) : 0;
+  const momVal  = momArr[n-1];
+  const momPrev = momArr[n-2]||momVal;
+  const ema50   = ema50arr[n-1];
+
+  // MACD
+  let macdSigR, macdDesc;
+  if (ml > ms && mh > mhPrev) {
+    macdSigR = 'BUY';
+    macdDesc = `Linie (${ml.toFixed(2)}) > Semnal (${ms.toFixed(2)}), histogramă ↑`;
+  } else if (ml < ms && mh < mhPrev) {
+    macdSigR = 'SELL';
+    macdDesc = `Linie (${ml.toFixed(2)}) < Semnal (${ms.toFixed(2)}), histogramă ↓`;
+  } else {
+    macdSigR = 'NEU';
+    macdDesc = `Linie (${ml.toFixed(2)}) ≈ Semnal (${ms.toFixed(2)}), divergență slabă`;
+  }
+
+  // Stoch RSI
+  let stochSigR, stochDesc;
+  if (sk < 20 && sk > skPrev) {
+    stochSigR = 'BUY'; stochDesc = `%K=${sk.toFixed(1)} — zonă supravândută, revenire ↑`;
+  } else if (sk > 80 && sk < skPrev) {
+    stochSigR = 'SELL'; stochDesc = `%K=${sk.toFixed(1)} — zonă supracumpărată, întoarcere ↓`;
+  } else if (sk < 45) {
+    stochSigR = 'BUY'; stochDesc = `%K=${sk.toFixed(1)} — momentum bearish, potențial BUY`;
+  } else if (sk > 55) {
+    stochSigR = 'SELL'; stochDesc = `%K=${sk.toFixed(1)} — momentum bullish, potențial SELL`;
+  } else {
+    stochSigR = 'NEU'; stochDesc = `%K=${sk.toFixed(1)} — neutru`;
+  }
+
+  // Volume
+  let volSigR, volDesc;
+  if (vr > 1.5) {
+    volSigR = 'BUY'; volDesc = `Volum ${vr.toFixed(2)}× media — confirmare puternică`;
+  } else if (vr < 0.7) {
+    volSigR = 'SELL'; volDesc = `Volum ${vr.toFixed(2)}× media — semnal slab, fără confirmare`;
+  } else {
+    volSigR = 'NEU'; volDesc = `Volum ${vr.toFixed(2)}× media (${(curVol/1000).toFixed(1)}K vs avg ${(avgV/1000).toFixed(1)}K)`;
+  }
+
+  // RSI
+  let rsiSigR, rsiDesc;
+  if(rsiVal < 30){rsiSigR='BUY'; rsiDesc=`RSI=${rsiVal.toFixed(1)} — supravândut (<30), revenire ↑`;}
+  else if(rsiVal > 70){rsiSigR='SELL'; rsiDesc=`RSI=${rsiVal.toFixed(1)} — supracumpărat (>70), întoarcere ↓`;}
+  else if(rsiVal < 50 && rsiVal > rsiPrev){rsiSigR='BUY'; rsiDesc=`RSI=${rsiVal.toFixed(1)} — sub 50, momentum crescător ↑`;}
+  else if(rsiVal > 50 && rsiVal < rsiPrev){rsiSigR='SELL'; rsiDesc=`RSI=${rsiVal.toFixed(1)} — peste 50, momentum descrescător ↓`;}
+  else{rsiSigR='NEU'; rsiDesc=`RSI=${rsiVal.toFixed(1)} — neutru`;}
+
+  // Bollinger Bands
+  let bbSigR, bbDesc;
+  if(price <= bbLower){bbSigR='BUY'; bbDesc=`Preț $${price.toFixed(2)} ≤ BB Lower $${bbLower.toFixed(2)} — potențial revenire ↑`;}
+  else if(price >= bbUpper){bbSigR='SELL'; bbDesc=`Preț $${price.toFixed(2)} ≥ BB Upper $${bbUpper.toFixed(2)} — potențial revenire ↓`;}
+  else if(price > bbMiddle){bbSigR='BUY'; bbDesc=`Preț $${price.toFixed(2)} peste BB Middle $${bbMiddle.toFixed(2)} — trend bullish`;}
+  else{bbSigR='SELL'; bbDesc=`Preț $${price.toFixed(2)} sub BB Middle $${bbMiddle.toFixed(2)} — trend bearish`;}
+
+  // Momentum (ROC 10)
+  let momSigR, momDesc;
+  if(momVal > 0 && momVal > momPrev){momSigR='BUY'; momDesc=`Momentum +${momVal.toFixed(2)}% ↑ accelerare`;}
+  else if(momVal < 0 && momVal < momPrev){momSigR='SELL'; momDesc=`Momentum ${momVal.toFixed(2)}% ↓ accelerare`;}
+  else if(momVal > 0){momSigR='BUY'; momDesc=`Momentum +${momVal.toFixed(2)}% pozitiv, decelerare`;}
+  else if(momVal < 0){momSigR='SELL'; momDesc=`Momentum ${momVal.toFixed(2)}% negativ, decelerare`;}
+  else{momSigR='NEU'; momDesc=`Momentum ${momVal.toFixed(2)}% neutru`;}
+
+  // EMA 50 (filtru trend)
+  let ema50SigR, ema50Desc;
+  if(price > ema50){ema50SigR='BUY'; ema50Desc=`Preț $${price.toFixed(2)} > EMA9 $${ema50.toFixed(2)} — trend bullish ↑`;}
+  else{ema50SigR='SELL'; ema50Desc=`Preț $${price.toFixed(2)} < EMA9 $${ema50.toFixed(2)} — trend bearish ↓`;}
+
+  // EMA 9
+  const ema9SigR = price > e9 ? 'BUY' : 'SELL';
+  const ema9Desc = `Preț $${price.toFixed(2)} ${price > e9 ? '>' : '<'} EMA9 $${e9.toFixed(2)}`;
+
+  // EMA 21
+  const ema21SigR = price > e21 ? 'BUY' : 'SELL';
+  const ema21Desc = `Preț $${price.toFixed(2)} ${price > e21 ? '>' : '<'} EMA21 $${e21.toFixed(2)}`;
+
+  const sigs = [macdSigR, stochSigR, volSigR, rsiSigR, bbSigR, momSigR, ema50SigR];
+  const buyCount  = sigs.filter(s => s === 'BUY').length;
+  const sellCount = sigs.filter(s => s === 'SELL').length;
+
+  return {
+    price, vr,
+    macdSigR, macdDesc,
+    stochSigR, stochDesc,
+    volSigR,   volDesc,
+    rsiSigR,   rsiDesc,
+    bbSigR,    bbDesc,
+    momSigR,   momDesc,
+    ema50SigR, ema50Desc,
+    buyCount, sellCount,
+    ema50arr:  ema50arr.slice(-50),
+    bbUpper:   bb.upper.slice(-50),
+    bbMiddle:  bb.middle.slice(-50),
+    bbLower:   bb.lower.slice(-50),
+    closes:    closes.slice(-50),
+    timestamps: klines.slice(-50).map(k => k.openTime),
+  };
+}
+
+// ── Chart ────────────────────────────────────────────────────────────────────
+let chartInst = null;
+function renderChart(res) {
+  const iv = $('cfgInterval').value;
+  const fmt = ts => {
+    const d = new Date(typeof ts === 'number' ? ts : parseInt(ts));
+    if (['1d'].includes(iv)) return d.toLocaleDateString('ro-RO', {day:'2-digit',month:'short'});
+    if (['4h','2h','1h'].includes(iv)) return d.toLocaleDateString('ro-RO', {day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('ro-RO', {hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleTimeString('ro-RO', {hour:'2-digit',minute:'2-digit'});
+  };
+  const labels = res.timestamps ? res.timestamps.map(fmt) : res.closes.map((_, i) => i);
+  const data = {
+    labels,
+    datasets: [
+      {
+        label: 'Preț',
+        data: res.closes,
+        borderColor: '#4f8ef7',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: { target: 'origin', above: 'rgba(79,142,247,0.04)' },
+      },
+      {
+        label: 'EMA 9',
+        data: res.ema50arr,
+        borderColor: 'rgba(240,180,41,0.7)',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        borderDash: [6,3],
+        tension: 0.3,
+      },
+      {
+        label: 'BB Upper',
+        data: res.bbUpper,
+        borderColor: 'rgba(167,139,250,0.5)',
+        borderWidth: 1,
+        pointRadius: 0,
+        borderDash: [3, 3],
+        tension: 0.3,
+        fill: false,
+      },
+      {
+        label: 'BB Lower',
+        data: res.bbLower,
+        borderColor: 'rgba(167,139,250,0.5)',
+        borderWidth: 1,
+        pointRadius: 0,
+        borderDash: [3, 3],
+        tension: 0.3,
+        fill: '-1',
+        backgroundColor: 'rgba(167,139,250,0.04)',
+      },
+    ]
+  };
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
+    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false,
+      callbacks: {
+        title: items => items[0].label,
+        label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}`
+      }
+    } },
+    scales: {
+      x: {
+        display: true,
+        ticks: {
+          color: '#6b7a90',
+          font: { family: "'JetBrains Mono'", size: 9 },
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: 6,
+        },
+        grid: { display: false },
+        border: { display: false },
+      },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { color: '#6b7a90', font: { family: "'JetBrains Mono'", size: 10 },
+          callback: v => '$' + v.toFixed(0) }
+      }
+    }
+  };
+  if (chartInst) { chartInst.data = data; chartInst.options = opts; chartInst.update(); return; }
+  chartInst = new Chart($('miniChart'), { type: 'line', data, options: opts });
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setSig(id, descId, sig, desc) {
+  const el = $(id);
+  el.className = 'sig-badge';
+  if (sig === 'BUY')  { el.classList.add('sig-buy');  el.textContent = '▲ BUY'; }
+  else if (sig === 'SELL') { el.classList.add('sig-sell'); el.textContent = '▼ SELL'; }
+  else { el.classList.add('sig-neu'); el.textContent = '— NEU'; }
+  $(descId).textContent = desc;
+}
+
+function addLog(msg, type) {
+  const panel = $('logBody');
+  const now = new Date().toLocaleTimeString('ro-RO');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-ts">${now}</span><span class="log-${type}">${msg}</span>`;
+  panel.appendChild(div);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// ── Main analysis ─────────────────────────────────────────────────────────────
+let runCount = 0;
+
+
+// ── Calcul preț ieșire din profit dorit ──────────────────────────────────────
+function calcProfitExit() {
+  const capital      = parseFloat($('cfgCapital').value)||100;
+  const lev          = parseInt($('cfgLev').value)||1;
+  const entryOverride= parseFloat($('cfgEntry').value)||0;
+  const profitTarget = parseFloat($('cfgProfit').value)||0;
+  const sl           = parseFloat($('cfgSL').value);
+  const tp           = parseFloat($('cfgTP').value);
+
+  // Preț intrare: manual > din trade box
+  let entryP = 0;
+  if (entryOverride > 0) {
+    entryP = entryOverride;
+  } else {
+    const txt = $('tEntry').textContent.replace('$','');
+    entryP = parseFloat(txt)||0;
+  }
+
+  // Actualizăm calculatorul din config panel
+  if (entryP > 0 && profitTarget > 0) {
+    const positionSize  = capital * lev;
+    const qty           = positionSize / entryP;
+    const exitForProfit = entryP + profitTarget / qty;
+    const exitPct       = (profitTarget / qty / entryP) * 100;
+  const liqCfg = entryP * (1 - (1 - 0.004) / lev);
+    $('cfgExitCalc').style.display = '';
+    $('cfgExitPrice').textContent  = `$${exitForProfit.toFixed(2)}`;
+    $('cfgExitPct').textContent    = `+${exitPct.toFixed(3)}%`;
+    $('cfgPosVal').textContent     = `${lev}× · $${positionSize.toFixed(2)} USDC`;
+    $('cfgLiqPrice').textContent   = `$${liqCfg.toFixed(2)}`;
+  } else {
+    $('cfgExitCalc').style.display = 'none';
+  }
+
+  // Actualizăm și trade box dacă e vizibil
+  if ($('tradeBox').style.display === 'none' || !entryP) return;
+  const positionSize  = capital * lev;
+  const qty           = positionSize / entryP;
+  const exitForProfit = entryP + profitTarget / qty;
+  const exitPct       = (profitTarget / qty / entryP) * 100;
+  const slP           = entryP * (1 - sl/100);
+  const tpP           = entryP * (1 + tp/100);
+  $('tLev').textContent          = `${lev}× (poziție: $${positionSize.toFixed(2)} USDC)`;
+  $('tPos').textContent          = `${qty.toFixed(6)} ETH × $${entryP.toFixed(2)}`;
+  $('tSL').textContent           = `$${slP.toFixed(2)}  (−${sl}%)`;
+  $('tTP').textContent           = `$${tpP.toFixed(2)}  (+${tp}%)`;
+  const liqTB = entryP * (1 - (1 - 0.004) / lev);
+  $('tProfitTarget').textContent = `+${profitTarget.toFixed(2)} USDC`;
+  $('tExitPrice').textContent    = `$${exitForProfit.toFixed(2)}`;
+  $('tExitPct').textContent      = `+${exitPct.toFixed(3)}% față de intrare`;
+  $('tLiqPrice').textContent     = `$${liqTB.toFixed(2)}`;
+  $('tQty').textContent          = `${qty.toFixed(6)} ETH`;
+}
+
+
+// ── ntfy Notificări ───────────────────────────────────────────────────────────
+async function sendNtfy(title, message, priority='default', tags='') {
+  const topic = $('ntfyTopic').value.trim();
+  if (!topic) return;
+  try {
+    // Folosim un iframe invizibil + form POST pentru a ocoli extensiile browser
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.name = 'ntfy_frame_' + Date.now();
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `https://ntfy.sh/${topic}`;
+    form.target = iframe.name;
+    form.style.display = 'none';
+
+    const addField = (name, val) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = val;
+      form.appendChild(input);
+    };
+
+    // ntfy accepta parametri si ca form fields
+    addField('title', title);
+    addField('message', message);
+    addField('priority', priority);
+    if (tags) addField('tags', tags);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(() => {
+      document.body.removeChild(form);
+      document.body.removeChild(iframe);
+    }, 3000);
+
+    $('ntfyStatus').textContent = '✓ Trimis';
+    $('ntfyStatus').style.color = 'var(--green, #00d68f)';
+    setTimeout(() => {
+      $('ntfyStatus').textContent = '—';
+      $('ntfyStatus').style.color = 'var(--muted, #6b7a90)';
+    }, 3000);
+  } catch(e) {
+    $('ntfyStatus').textContent = '✗ Eroare';
+    $('ntfyStatus').style.color = 'var(--red, #ff4d6a)';
+  }
+}
+
+async function testNtfy() {
+  const topic = $('ntfyTopic').value.trim();
+  if (!topic) { alert('Introdu un topic ntfy mai întâi!'); return; }
+  await sendNtfy(
+    '🤖 ETH Bot — Test notificare',
+    'Notificările funcționează corect! Botul tău ETH/USDC este activ.',
+    'default', 'white_check_mark'
+  );
+}
+
+async function runAnalysis() {
+  const interval  = $('cfgInterval').value;
+  const iText     = $('cfgInterval').options[$('cfgInterval').selectedIndex].text;
+  const capital   = parseFloat($('cfgCapital').value) || 100;
+  const sl        = parseFloat($('cfgSL').value);
+  const tp        = parseFloat($('cfgTP').value);
+  const threshold = parseInt($('cfgThresh').value);
+
+  $('runBtn').disabled = true;
+  $('runBtn').textContent = '⟳ SE DESCARCĂ DATE...';
+  $('statusDot').className = 'dot running';
+  $('statusText').textContent = 'FETCH...';
+
+  try {
+    const [klines, ticker] = await Promise.all([
+      fetchKlines('ETHUSDC', interval, 200),
+      fetchTicker('ETHUSDC'),
+    ]);
+
+    const res = analyze(klines);
+    runCount++;
+
+    // Price header
+    const change = parseFloat(ticker.priceChangePercent);
+    window._currentPrice = res.price; renderTrades(); $('livePrice').textContent = `$${res.price.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    $('priceChange').textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}% (24h)`;
+    $('priceChange').className = `live-price-change ${change >= 0 ? 'up' : 'down'}`;
+
+    // Metrics
+    $('mInterval').textContent = interval;
+    $('mRuns').textContent = runCount;
+
+    // Chart
+    renderChart(res);
+    $('chartEma9').textContent  = `$${res.ema50arr[res.ema50arr.length-1].toFixed(2)}`;
+    $('chartEma21').textContent = `$${res.bbUpper[res.bbUpper.length-1].toFixed(2)} / $${res.bbLower[res.bbLower.length-1].toFixed(2)}`;
+    $('chartVolRatio').textContent = `${res.vr ? res.vr.toFixed(2) : '—'}×`;
+
+    // Indicators
+    setSig('sMACD',  'dMACD',  res.macdSigR,  res.macdDesc);
+    setSig('sStoch', 'dStoch', res.stochSigR, res.stochDesc);
+    setSig('sVol',   'dVol',   res.volSigR,   res.volDesc);
+    setSig('sRSI',   'dRSI',   res.rsiSigR,   res.rsiDesc);
+    setSig('sBB',    'dBB',    res.bbSigR,    res.bbDesc);
+    setSig('sMom',   'dMom',   res.momSigR,   res.momDesc);
+    setSig('sEma50', 'dEma50', res.ema50SigR, res.ema50Desc);
+
+    // Aggregated
+    const { buyCount, sellCount, price } = res;
+    $('mScore').textContent = `${buyCount}B/${sellCount}S`;
+
+    let aggText, aggClass, fillColor, fillPct;
+    if (buyCount >= threshold) {
+      aggText = `▲ CUMPĂRĂ  (${buyCount}/7)`;
+      aggClass = 'buy'; fillColor = 'var(--green)';
+      fillPct = Math.round(buyCount / 7 * 100);
+      $('mSignal').textContent = '▲ BUY';
+      $('mSignal').style.color = 'var(--green)';
+      // Trade box — calculăm înainte de orice referință
+      const entryOverride = parseFloat($('cfgEntry').value)||0;
+      const lev           = parseInt($('cfgLev').value)||1;
+      const profitTarget  = parseFloat($('cfgProfit').value)||0;
+      const entryP        = entryOverride > 0 ? entryOverride : price;
+      const positionSize  = capital * lev;
+      const qty           = positionSize / entryP;
+      const slP           = entryP * (1 - sl/100);
+      const tpP           = entryP * (1 + tp/100);
+      const exitForProfit = qty > 0 ? entryP + profitTarget/qty : 0;
+      const exitPct       = qty > 0 ? (profitTarget/qty/entryP*100) : 0;
+      const liqBuy        = entryP * (1 - (1 - 0.004) / lev);
+
+      addLog(`BUY — ${buyCount}/7 indicatori | $${price.toFixed(2)} | SL: -${sl}% | TP: +${tp}% | ${capital} USDC`, 'buy');
+      sendNtfy(
+        '📈 ETH/USDC — Semnal BUY',
+        `▲ CUMPĂRĂ — ${buyCount}/7 indicatori\nPreț: $${entryP.toFixed(2)} USDC\nLeverage: ${lev}×\nValoare poziție: $${positionSize.toFixed(2)} USDC\nStop Loss: $${liqBuy.toFixed(2)}\nPreț ieșire profit: $${exitForProfit.toFixed(2)}\nLichidare: $${liqBuy.toFixed(2)}`,
+        'high', 'chart_with_upwards_trend,moneybag'
+      );
+
+      $('tEntry').textContent        = `$${entryP.toFixed(2)}`;
+      $('tLev').textContent          = `${lev}× (poziție: $${positionSize.toFixed(2)} USDC)`;
+      $('tPos').textContent          = `${qty.toFixed(6)} ETH × $${entryP.toFixed(2)}`;
+      $('tSL').textContent           = `$${slP.toFixed(2)}  (−${sl}%)`;
+      $('tTP').textContent           = `$${tpP.toFixed(2)}  (+${tp}%)`;
+      $('tProfitTarget').textContent = `+${profitTarget.toFixed(2)} USDC`;
+      $('tExitPrice').textContent    = `$${exitForProfit.toFixed(2)}`;
+      $('tExitPct').textContent      = `+${exitPct.toFixed(3)}% față de intrare`;
+      $('tLiqPrice').textContent     = `$${liqBuy.toFixed(2)}`;
+      $('tQty').textContent          = `${qty.toFixed(6)} ETH`;
+      $('tradeBox').style.display = '';
+      calcProfitExit();
+    } else if (sellCount >= threshold) {
+      aggText = `▼ VINDE  (${sellCount}/7)`;
+      aggClass = 'sell'; fillColor = 'var(--red)';
+      fillPct = Math.round(sellCount / 7 * 100);
+      $('mSignal').textContent = '▼ SELL';
+      $('mSignal').style.color = 'var(--red)';
+      addLog(`SELL — ${sellCount}/7 indicatori | $${price.toFixed(2)}`, 'sell');
+      sendNtfy(
+        '📉 ETH/USDC — Semnal SELL',
+        `▼ VINDE — ${sellCount}/7 indicatori\nPreț curent: $${price.toFixed(2)} USDC\nInterval: ${$('cfgInterval').options[$('cfgInterval').selectedIndex].text}`,
+        'high', 'chart_with_downwards_trend,warning'
+      );
+      $('tradeBox').style.display = 'none';
+    } else {
+      aggText = `— NEUTRU  (B:${buyCount} S:${sellCount})`;
+      aggClass = 'neu'; fillColor = 'var(--dim)';
+      fillPct = 50;
+      $('mSignal').textContent = '— NEU';
+      $('mSignal').style.color = 'var(--muted)';
+      addLog(`NEUTRU — BUY: ${buyCount}, SELL: ${sellCount}. Sub prag ${threshold}/7.`, 'info');
+      $('tradeBox').style.display = 'none';
+    }
+
+    const aggEl = $('aggSignal');
+    aggEl.textContent = aggText;
+    aggEl.className = `signal-label ${aggClass}`;
+    $('aggDetail').textContent = `BUY: ${buyCount} · SELL: ${sellCount} · Prag: ${threshold}/7`;
+    $('scoreFill').style.width = fillPct + '%';
+    $('scoreFill').style.background = fillColor;
+
+    $('mSignalTime').textContent = new Date().toLocaleTimeString('ro-RO');
+    $('statusDot').className = 'dot active';
+    $('statusText').textContent = `ACTIV · ${iText.toUpperCase()}`;
+
+  } catch (err) {
+    addLog(`Eroare: ${err.message}`, 'warn');
+    $('statusDot').className = 'dot';
+    $('statusText').textContent = 'EROARE';
+    console.error(err);
+  }
+
+  $('runBtn').disabled = false;
+  $('runBtn').textContent = '↻ RE-ANALIZEAZĂ';
+}
+
+// ── Auto-loop ─────────────────────────────────────────────────────────────────
+let loopTimer = null;
+const loopIntervals = { '1m':60,'3m':180,'5m':300,'15m':900,'30m':1800,'1h':3600,'2h':7200,'4h':14400,'1d':86400 };
+
+function toggleLoop() {
+  if (loopTimer) {
+    clearInterval(loopTimer);
+    loopTimer = null;
+    $('loopBtn').textContent = '↻ AUTO-REFRESH: OFF';
+    $('loopBtn').classList.remove('active-loop');
+    addLog('Auto-refresh dezactivat.', 'info');
+  } else {
+    const sec = parseInt($('cfgRefresh').value) || 60;
+    const secLabel = $('cfgRefresh').options[$('cfgRefresh').selectedIndex].text;
+    runAnalysis();
+    loopTimer = setInterval(runAnalysis, sec * 1000);
+    $('loopBtn').textContent = `↻ AUTO-REFRESH: ${secLabel}`;
+    $('loopBtn').classList.add('active-loop');
+    addLog(`Auto-refresh activat — interval ${sec}s.`, 'warn');
+  }
+}
+
+
+// ── TRANZACȚII DESCHISE ──────────────────────────────────────────────────────
+const TR_KEY = 'trades_eth_usdc_v1';
+let _tradeList = JSON.parse(localStorage.getItem(TR_KEY) || '[]');
+
+function saveTrades() { localStorage.setItem(TR_KEY, JSON.stringify(_tradeList)); }
+
+function addTrade() {
+  const date = document.getElementById('trDate').value;
+  const usd  = parseFloat(document.getElementById('trUsd').value);
+  const lev  = parseFloat(document.getElementById('trLev').value) || 1;
+  const buy  = parseFloat(document.getElementById('trBuy').value);
+  const dir  = document.getElementById('trDir').value;
+  if (!date || isNaN(usd) || !usd || isNaN(buy) || !buy) {
+    alert('Completează: Data, USD investiți și Prețul de achiziție!');
+    return;
+  }
+  _tradeList.push({ id: Date.now(), date, usd, lev, buy, dir });
+  saveTrades();
+  renderTrades();
+  document.getElementById('trDate').value = '';
+  document.getElementById('trUsd').value = '';
+  document.getElementById('trBuy').value = '';
+}
+
+function deleteTrade(id) {
+  _tradeList = _tradeList.filter(t => t.id !== id);
+  saveTrades();
+  renderTrades();
+}
+
+function clearAllTrades() {
+  if (!_tradeList.length) return;
+  if (!confirm('Ștergi toate tranzacțiile înregistrate?')) return;
+  _tradeList = [];
+  saveTrades();
+  renderTrades();
+}
+
+function renderTrades() {
+  const wrap = document.getElementById('tradeList');
+  const sumEl = document.getElementById('tradeSummary');
+  if (!wrap) return;
+  if (!_tradeList.length) { wrap.innerHTML = '<div style="padding:18px 16px;color:var(--dim);font-size:12px;font-style:italic">Nicio tranzacție înregistrată. Completează formularul de mai sus.</div>'; sumEl.style.display = 'none'; return; }
+
+  const curPrice = window._currentPrice || 0;
+  let html = '', totalInv = 0, totalPnl = 0;
+
+  _tradeList.forEach(t => {
+    const cur = curPrice || t.buy;
+    const pnlPct = t.dir === 'LONG'
+      ? (cur - t.buy) / t.buy * 100 * t.lev
+      : (t.buy - cur) / t.buy * 100 * t.lev;
+    const pnlUsd = t.usd * pnlPct / 100;
+    totalInv += t.usd; totalPnl += pnlUsd;
+    const cls  = pnlUsd >= 0 ? 'tr-pnl-pos' : 'tr-pnl-neg';
+    const sgn  = pnlUsd >= 0 ? '+' : '';
+    const dateStr = t.date.replace('T',' ').slice(0,16);
+    const curStr = curPrice ? '$'+curPrice.toLocaleString('ro',{minimumFractionDigits:2,maximumFractionDigits:4}) : '<span style="color:var(--dim)">—</span>';
+    const pnlStr = curPrice
+      ? `<span class="${cls}">${sgn}${pnlUsd.toFixed(2)} $ <small style="opacity:.7">(${sgn}${pnlPct.toFixed(2)}%)</small></span> <small style="color:var(--dim)">${t.dir}</small>`
+      : '<span style="color:var(--dim)">se încarcă…</span>';
+    const liqPrice = t.dir === 'LONG'
+      ? t.buy * (1 - 1/t.lev)
+      : t.buy * (1 + 1/t.lev);
+    const liqStr = t.lev > 1
+      ? `$${liqPrice.toLocaleString('ro',{minimumFractionDigits:2,maximumFractionDigits:4})}`
+      : '<span style="color:var(--dim)">N/A</span>';
+    const liqDanger = curPrice && t.lev > 1 && (
+      (t.dir === 'LONG'  && curPrice <= liqPrice * 1.03) ||
+      (t.dir === 'SHORT' && curPrice >= liqPrice * 0.97)
+    );
+    html += `<div class="trade-row">
+      <span style="color:var(--muted);font-size:11px">${dateStr}</span>
+      <span>$${t.usd.toFixed(0)}</span>
+      <span style="color:var(--yellow)">${t.lev}×</span>
+      <span>$${t.buy.toLocaleString('ro',{minimumFractionDigits:2,maximumFractionDigits:4})}</span>
+      <span style="color:${liqDanger ? 'var(--red)' : 'var(--dim)'}${liqDanger ? ';font-weight:700;animation:blink 1s infinite' : ''}">${liqStr}${liqDanger ? ' ⚠' : ''}</span>
+      <span>${curStr}</span>
+      <span>${pnlStr}</span>
+      <button class="tr-del" onclick="deleteTrade(${t.id})">✕</button>
+    </div>`;
+  });
+
+  wrap.innerHTML = html;
+  sumEl.style.display = 'flex';
+  document.getElementById('tsInvested').textContent = '$'+totalInv.toFixed(2);
+  const pEl = document.getElementById('tsPnl');
+  pEl.textContent = (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+' $';
+  pEl.className = 'ts-val '+(totalPnl>=0?'tr-pnl-pos':'tr-pnl-neg');
+  const roi = totalInv>0 ? totalPnl/totalInv*100 : 0;
+  const rEl = document.getElementById('tsRoi');
+  rEl.textContent = (roi>=0?'+':'')+roi.toFixed(2)+'%';
+  rEl.className = 'ts-val '+(roi>=0?'tr-pnl-pos':'tr-pnl-neg');
+
+  // Cel mai aproape de lichidare
+  const lqEl = document.getElementById('tsLiq');
+  if (lqEl && curPrice && _tradeList.length) {
+    let closest = null; let closestDist = Infinity;
+    _tradeList.forEach(t => {
+      if (t.lev <= 1) return;
+      const lp = t.dir === 'LONG' ? t.buy*(1-1/t.lev) : t.buy*(1+1/t.lev);
+      const dist = Math.abs(curPrice - lp) / curPrice * 100;
+      if (dist < closestDist) { closestDist = dist; closest = { lp, dist, dir: t.dir, lev: t.lev }; }
+    });
+    if (closest) {
+      const danger = closestDist < 5;
+      const dec = closest.lp < 1 ? 6 : 4;
+      lqEl.textContent = '$'+closest.lp.toLocaleString('ro',{minimumFractionDigits:dec,maximumFractionDigits:dec})
+        +' ('+closest.dist.toFixed(1)+'% distanță)';
+      lqEl.className = 'ts-val '+(danger ? 'tr-pnl-neg' : 'ts-val-liq');
+      lqEl.style.animation = danger ? 'blink 1s infinite' : 'none';
+    } else {
+      lqEl.textContent = 'N/A (leverage 1×)';
+      lqEl.className = 'ts-val'; lqEl.style.animation = 'none';
+    }
+  } else if (lqEl) {
+    lqEl.textContent = '—'; lqEl.className = 'ts-val'; lqEl.style.animation = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => { renderTrades(); });
+
+
+
+// ── FIREBASE CONFIG ──────────────────────────────────────────────────────────
+// 🔧 Înlocuiește cu datele tale din Firebase Console → Project Settings → Web App
+const FB_CONFIG = {
+  apiKey:            "FIREBASE_API_KEY",
+  authDomain:        "FIREBASE_PROJECT_ID.firebaseapp.com",
+  projectId:         "FIREBASE_PROJECT_ID",
+  storageBucket:     "FIREBASE_PROJECT_ID.appspot.com",
+  messagingSenderId: "FIREBASE_SENDER_ID",
+  appId:             "FIREBASE_APP_ID"
+};
+
+firebase.initializeApp(FB_CONFIG);
+const fbAuth = firebase.auth();
+const fbDb   = firebase.firestore();
+const FB_COLLECTION = 'trades_eth';
+
+let _currentUser = null;
+let _unsubscribeFs = null;
+
+fbAuth.onAuthStateChanged(user => {
+  _currentUser = user;
+  renderAuthBar(user);
+  if (user) {
+    startFirestoreSync(user.uid);
+  } else {
+    if (_unsubscribeFs) { _unsubscribeFs(); _unsubscribeFs = null; }
+    _tradeList = JSON.parse(localStorage.getItem(TR_KEY) || '[]');
+    renderTrades();
+  }
+});
+
+function renderAuthBar(user) {
+  const bar = document.getElementById('authBar');
+  if (!bar) return;
+  if (user) {
+    const initials = (user.displayName || user.email || '?')
+      .split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0,2);
+    const name = user.displayName || user.email || 'User';
+    bar.innerHTML = `
+      <div class="auth-avatar" title="${user.email}">${initials}</div>
+      <span class="auth-name" title="${user.email}">${name}</span>
+      <div class="auth-sync" id="syncStatus">
+        <span class="auth-sync-dot"></span>Sincronizat
+      </div>
+      <button class="btn-auth-logout" onclick="doLogout()">Ieșire</button>
+    `;
+  } else {
+    bar.innerHTML = `
+      <button class="btn-auth-login" onclick="doLogin()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff" style="flex-shrink:0">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Login cu Google
+      </button>
+    `;
+  }
+}
+
+function doLogin() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  fbAuth.signInWithPopup(provider).catch(err => {
+    alert('Eroare login: ' + err.message);
+  });
+}
+
+function doLogout() {
+  if (!confirm('Ieși din cont? Tranzacțiile rămân salvate în cloud.')) return;
+  fbAuth.signOut();
+}
+
+function startFirestoreSync(uid) {
+  if (_unsubscribeFs) _unsubscribeFs();
+  const ref = fbDb.collection(FB_COLLECTION).doc(uid).collection('items');
+  _unsubscribeFs = ref.orderBy('createdAt', 'asc').onSnapshot(snap => {
+    _tradeList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    localStorage.setItem(TR_KEY, JSON.stringify(_tradeList));
+    setSyncStatus(true);
+    renderTrades();
+  }, err => {
+    setSyncStatus(false);
+  });
+}
+
+function setSyncStatus(online) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.className = 'auth-sync' + (online ? '' : ' offline');
+  el.innerHTML = '<span class="auth-sync-dot"></span>' + (online ? 'Sincronizat live' : 'Offline — date locale');
+}
+
+function saveTrades() {
+  localStorage.setItem(TR_KEY, JSON.stringify(_tradeList));
+}
+
+// ── OVERRIDE addTrade ─────────────────────────────────────────────────────────
+window.addTrade = async function() {
+  const date = document.getElementById('trDate').value;
+  const usd  = parseFloat(document.getElementById('trUsd').value);
+  const lev  = parseFloat(document.getElementById('trLev').value) || 1;
+  const buy  = parseFloat(document.getElementById('trBuy').value);
+  const dir  = document.getElementById('trDir').value;
+  if (!date || isNaN(usd) || !usd || isNaN(buy) || !buy) {
+    alert('Completează: Data, USD investiți și Prețul de achiziție!');
+    return;
+  }
+  const trade = { date, usd, lev, buy, dir, createdAt: Date.now() };
+  if (_currentUser) {
+    try {
+      await fbDb.collection(FB_COLLECTION).doc(_currentUser.uid).collection('items').add(trade);
+    } catch(e) {
+      _tradeList.push({ id: Date.now(), ...trade });
+      saveTrades(); renderTrades();
+    }
+  } else {
+    _tradeList.push({ id: Date.now(), ...trade });
+    saveTrades(); renderTrades();
+  }
+  document.getElementById('trDate').value = '';
+  document.getElementById('trUsd').value  = '';
+  document.getElementById('trBuy').value  = '';
+};
+
+// ── OVERRIDE deleteTrade ──────────────────────────────────────────────────────
+window.deleteTrade = async function(id) {
+  if (_currentUser) {
+    try {
+      await fbDb.collection(FB_COLLECTION).doc(_currentUser.uid).collection('items').doc(String(id)).delete();
+    } catch(e) { console.error(e); }
+  } else {
+    _tradeList = _tradeList.filter(t => t.id !== id);
+    saveTrades(); renderTrades();
+  }
+};
+
+// ── OVERRIDE clearAllTrades ───────────────────────────────────────────────────
+window.clearAllTrades = async function() {
+  if (!_tradeList.length) return;
+  if (!confirm('Ștergi toate tranzacțiile? Acțiunea este ireversibilă.')) return;
+  if (_currentUser) {
+    try {
+      const ref  = fbDb.collection(FB_COLLECTION).doc(_currentUser.uid).collection('items');
+      const snap = await ref.get();
+      const batch = fbDb.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    } catch(e) { console.error(e); }
+  } else {
+    _tradeList = []; saveTrades(); renderTrades();
+  }
+};
+
+</script>
+</body>
+</html>
