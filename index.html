@@ -1,258 +1,223 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boti automati crypto</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #0a0c0f;
-      --bg2: #0f1217;
-      --bg3: #151a22;
-      --border: rgba(255,255,255,.1);
-      --text: #e2e8f0;
-      --muted: #6b7a90;
-      --green: #00d68f;
-      --cyan: #38bdf8;
-      --yellow: #f0b429;
-      --purple: #a78bfa;
-      --red: #ff4d6a;
-      --mono: 'JetBrains Mono', monospace;
-      --display: 'Syne', sans-serif;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      min-height: 100vh;
-      background:
-        linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(167,139,250,.03) 1px, transparent 1px),
-        var(--bg);
-      background-size: 42px 42px;
-      color: var(--text);
-      font-family: var(--mono);
-      padding: 28px 18px;
-    }
-
-    .page {
-      width: min(980px, 100%);
-      margin: 0 auto;
-    }
-
-    header {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 20px;
-      margin-bottom: 22px;
-    }
-
-    h1 {
-      font-family: var(--display);
-      font-size: clamp(30px, 6vw, 54px);
-      line-height: .95;
-      letter-spacing: 0;
-      color: #fff;
-    }
-
-    .subtitle {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
-    .badge {
-      border: 1px solid rgba(0,214,143,.28);
-      color: var(--green);
-      border-radius: 6px;
-      padding: 7px 11px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      white-space: nowrap;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 18px;
-    }
-
-    .bot-card {
-      display: block;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 18px;
-      color: inherit;
-      text-decoration: none;
-      transition: transform .18s, border-color .18s, background .18s;
-      min-height: 220px;
-    }
-
-    .bot-card:hover {
-      transform: translateY(-2px);
-      background: var(--bg3);
-      border-color: rgba(255,255,255,.2);
-    }
-
-    .bot-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 22px;
-    }
-
-    .pair {
-      font-family: var(--display);
-      font-size: 32px;
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .pair span.beat { color: var(--purple); }
-    .pair span.eth { color: var(--cyan); }
-
-    .market {
-      color: var(--muted);
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-top: 4px;
-    }
-
-    .signal {
-      border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
-    .signal.futures {
-      color: var(--purple);
-      border: 1px solid rgba(167,139,250,.35);
-      background: rgba(167,139,250,.08);
-    }
-
-    .signal.spot {
-      color: var(--cyan);
-      border: 1px solid rgba(56,189,248,.35);
-      background: rgba(56,189,248,.08);
-    }
-
-    .features {
-      display: grid;
-      gap: 9px;
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .feature {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--yellow);
-      flex: 0 0 auto;
-    }
-
-    .open {
-      margin-top: 22px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: #fff;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
-    .footer {
-      margin-top: 22px;
-      padding: 14px 16px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: rgba(255,255,255,.02);
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.6;
-    }
-
-    .footer strong { color: var(--yellow); }
-
-    @media (max-width: 720px) {
-      body { padding: 18px 12px; }
-      header { align-items: flex-start; flex-direction: column; }
-      .grid { grid-template-columns: 1fr; }
-      .bot-card { min-height: auto; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoBots · investcryptoWhite</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0c0f;--bg2:#0f1217;--bg3:#151a22;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e2e8f0;--muted:#6b7a90;--dim:#3a4455;
+  --green:#00d68f;--red:#ff4d6a;--yellow:#f0b429;--cyan:#38bdf8;--accent:#4f8ef7;
+  --mono:'JetBrains Mono',monospace;--display:'Syne',sans-serif;
+}
+body{
+  min-height:100vh;background:var(--bg);font-family:var(--mono);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 20px 60px;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;
+}
+body::after{
+  content:'';position:fixed;top:-120px;left:50%;transform:translateX(-50%);
+  width:600px;height:300px;
+  background:radial-gradient(ellipse,rgba(79,142,247,.12) 0%,transparent 70%);
+  pointer-events:none;z-index:0;
+}
+.page{position:relative;z-index:1;width:100%;max-width:540px;display:flex;flex-direction:column;align-items:center;gap:24px}
+.header{text-align:center;padding-top:8px}
+.header h1{font-family:var(--display);font-size:38px;font-weight:800;color:#fff;letter-spacing:-1.5px;line-height:1}
+.header h1 span{color:var(--accent)}
+.header p{margin-top:8px;font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
+.status-bar{
+  width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;
+}
+.sb-live{display:flex;align-items:center;gap:6px;color:var(--green)}
+.sb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.sb-time{color:var(--muted);font-size:10px}
+.prices{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.price-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:16px;display:flex;flex-direction:column;gap:4px;transition:border-color .2s;
+}
+.price-card:hover{border-color:var(--border2)}
+.price-label{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted)}
+.price-value{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.5px}
+.price-change{font-size:12px;font-weight:500}
+.price-change.up{color:var(--green)}.price-change.down{color:var(--red)}
+.feature-badge{
+  width:100%;
+  background:linear-gradient(135deg,rgba(240,180,41,.1),rgba(240,180,41,.04));
+  border:1px solid rgba(240,180,41,.25);border-radius:8px;
+  padding:12px 16px;display:flex;align-items:center;gap:12px;
+}
+.feature-badge-icon{font-size:22px;flex-shrink:0}
+.feature-badge strong{display:block;font-size:13px;color:var(--yellow);margin-bottom:3px}
+.feature-badge span{font-size:11px;color:var(--muted);line-height:1.6}
+.bots{width:100%;display:flex;flex-direction:column;gap:12px}
+.bot-btn{
+  display:flex;align-items:center;gap:16px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:12px;
+  padding:18px 20px;text-decoration:none;color:var(--text);
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.bot-btn::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s}
+.bot-btn.eth::before{background:linear-gradient(135deg,rgba(79,142,247,.08),transparent)}
+.bot-btn.beat::before{background:linear-gradient(135deg,rgba(168,85,247,.08),transparent)}
+.bot-btn:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.bot-btn:hover::before{opacity:1}
+.bot-icon{
+  width:48px;height:48px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:13px;font-weight:800;
+  flex-shrink:0;position:relative;z-index:1;
+}
+.bot-btn.eth  .bot-icon{background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.3)}
+.bot-btn.beat .bot-icon{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3)}
+.bot-info{flex:1;position:relative;z-index:1}
+.bot-name{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px}
+.bot-desc{font-size:11px;color:var(--muted);line-height:1.7}
+.dot-live{display:inline-block;width:6px;height:6px;background:var(--green);border-radius:50%;margin-right:5px;vertical-align:middle;animation:pulse 2s ease-in-out infinite}
+.bot-arrow{font-size:18px;color:var(--dim);transition:color .2s,transform .2s;position:relative;z-index:1}
+.bot-btn:hover .bot-arrow{color:var(--muted);transform:translateX(3px)}
+.features{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.features-head{padding:10px 16px;border-bottom:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim)}
+.features-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.feat-item{
+  display:flex;align-items:center;gap:8px;padding:10px 16px;
+  font-size:11px;color:var(--muted);
+  border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+}
+.feat-item:nth-child(even){border-right:none}
+.feat-item:nth-last-child(-n+2){border-bottom:none}
+.feat-icon{font-size:14px;flex-shrink:0}
+.footer{font-size:10px;color:var(--dim);text-align:center;line-height:1.9}
+.footer a{color:var(--accent);text-decoration:none}
+.footer a:hover{text-decoration:underline}
+</style>
 </head>
 <body>
-  <main class="page">
-    <header>
-      <div>
-        <h1>Boti automati crypto</h1>
-        <p class="subtitle">Dashboard local pentru semnale, tranzactii, inchidere pozitii si profit obtinut</p>
-      </div>
-      <div class="badge">Binance live data</div>
-    </header>
+<div class="page">
 
-    <section class="grid" aria-label="Lista botilor disponibili">
-      <a class="bot-card" href="beat_usdt_bot.html">
-        <div class="bot-top">
-          <div>
-            <div class="pair">BEAT<span class="beat">/USDT</span></div>
-            <div class="market">Perpetual futures</div>
-          </div>
-          <div class="signal futures">Futures</div>
-        </div>
-        <div class="features">
-          <div class="feature"><span class="dot"></span><span>Semnale BUY/SELL pe baza indicatorilor tehnici</span></div>
-          <div class="feature"><span class="dot"></span><span>Tranzactii manuale cu P&amp;L live</span></div>
-          <div class="feature"><span class="dot"></span><span>Buton Inchide si profit obtinut pe tranzactie</span></div>
-        </div>
-        <span class="open">Deschide botul</span>
-      </a>
+  <div class="header">
+    <h1>Crypto<span>Bots</span></h1>
+    <p>investcryptoWhite · Signal Dashboard</p>
+  </div>
 
-      <a class="bot-card" href="eth_usdc_bot.html">
-        <div class="bot-top">
-          <div>
-            <div class="pair">ETH<span class="eth">/USDC</span></div>
-            <div class="market">Binance spot</div>
-          </div>
-          <div class="signal spot">Spot</div>
-        </div>
-        <div class="features">
-          <div class="feature"><span class="dot"></span><span>Analiza ETH/USDC cu date live</span></div>
-          <div class="feature"><span class="dot"></span><span>Tranzactii salvate local sau in cloud</span></div>
-          <div class="feature"><span class="dot"></span><span>Inchidere pozitie si profit obtinut calculat automat</span></div>
-        </div>
-        <span class="open">Deschide botul</span>
-      </a>
-    </section>
+  <div class="status-bar">
+    <div class="sb-live"><div class="sb-dot"></div>Date live · Binance API</div>
+    <div class="sb-time" id="sbTime">—</div>
+  </div>
 
-    <div class="footer">
-      <strong>Nota:</strong> fisierele ruleaza local in browser. Pentru preturi live, browserul trebuie sa aiba acces la internet si API-urile Binance/TradingView sa fie disponibile.
+  <div class="prices">
+    <div class="price-card">
+      <div class="price-label">ETH / USDC</div>
+      <div class="price-value" id="ethPrice">—</div>
+      <div class="price-change" id="ethChange">—</div>
     </div>
-  </main>
+    <div class="price-card">
+      <div class="price-label">BEAT / USDT</div>
+      <div class="price-value" id="beatPrice">—</div>
+      <div class="price-change" id="beatChange">—</div>
+    </div>
+  </div>
+
+  <div class="feature-badge">
+    <div class="feature-badge-icon">📊</div>
+    <div>
+      <strong>Tranzacție deschisă — P&amp;L Live</strong>
+      <span>Introdu data, USD investiți, leverage și prețul de achiziție.<br>
+      P&amp;L calculat automat în timp real · Date salvate local în browser.</span>
+    </div>
+  </div>
+
+  <div class="bots">
+    <a class="bot-btn eth" href="eth_usdc_bot.html">
+      <div class="bot-icon">ETH</div>
+      <div class="bot-info">
+        <div class="bot-name">ETH / USDC</div>
+        <div class="bot-desc">
+          <span class="dot-live"></span>Binance Spot · Date live<br>
+          7 indicatori · MACD · StochRSI · BB · RSI · Momentum · EMA9 · Volume
+        </div>
+      </div>
+      <div class="bot-arrow">→</div>
+    </a>
+
+    <a class="bot-btn beat" href="beat_usdt_bot.html">
+      <div class="bot-icon">BEAT</div>
+      <div class="bot-info">
+        <div class="bot-name">BEAT / USDT</div>
+        <div class="bot-desc">
+          <span class="dot-live"></span>Binance Futures Perpetual · Date live<br>
+          7 indicatori · MACD · StochRSI · BB · RSI · Momentum · EMA9 · Volume
+        </div>
+      </div>
+      <div class="bot-arrow">→</div>
+    </a>
+  </div>
+
+  <div class="features">
+    <div class="features-head">Funcționalități incluse</div>
+    <div class="features-grid">
+      <div class="feat-item"><span class="feat-icon">📈</span>7 indicatori tehnici</div>
+      <div class="feat-item"><span class="feat-icon">💰</span>P&amp;L live cu leverage</div>
+      <div class="feat-item"><span class="feat-icon">🔔</span>Notificări ntfy push</div>
+      <div class="feat-item"><span class="feat-icon">⚡</span>Auto-refresh configurabil</div>
+      <div class="feat-item"><span class="feat-icon">📊</span>Grafic mini + TradingView</div>
+      <div class="feat-item"><span class="feat-icon">🎯</span>Calculator SL / TP / profit</div>
+      <div class="feat-item"><span class="feat-icon">💾</span>Jurnal tranzacții local</div>
+      <div class="feat-item"><span class="feat-icon">📱</span>Mobil, tabletă, PC</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    ⚠ Semnale informative · Nu execută tranzacții automat · Nu constituie consiliere financiară<br>
+    <a href="https://github.com/investcryptoWhite/trading-bot" target="_blank">github.com/investcryptoWhite/trading-bot</a>
+  </div>
+
+</div>
+<script>
+function tick(){
+  document.getElementById('sbTime').textContent=new Date().toLocaleTimeString('ro-RO')+' · refresh 30s';
+}
+tick();setInterval(tick,1000);
+
+function fetchXHR(url){
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();x.open('GET',url,true);
+    x.onload=()=>x.status>=200&&x.status<300?res(JSON.parse(x.responseText)):rej(x.status);
+    x.onerror=()=>rej('err');x.send();
+  });
+}
+
+async function loadPrices(){
+  try{
+    const d=await fetchXHR('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDC');
+    const p=parseFloat(d.lastPrice),c=parseFloat(d.priceChangePercent);
+    document.getElementById('ethPrice').textContent='$'+p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('ethChange').textContent=(c>=0?'+':'')+c.toFixed(2)+'%';
+    document.getElementById('ethChange').className='price-change '+(c>=0?'up':'down');
+  }catch(e){document.getElementById('ethPrice').textContent='—';}
+
+  try{
+    const d=await fetchXHR('https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BEATUSDT');
+    const p=parseFloat(d.lastPrice),c=parseFloat(d.priceChangePercent);
+    document.getElementById('beatPrice').textContent='$'+p.toFixed(4);
+    document.getElementById('beatChange').textContent=(c>=0?'+':'')+c.toFixed(2)+'%';
+    document.getElementById('beatChange').className='price-change '+(c>=0?'up':'down');
+  }catch(e){document.getElementById('beatPrice').textContent='—';}
+}
+
+loadPrices();setInterval(loadPrices,30000);
+</script>
 </body>
 </html>
