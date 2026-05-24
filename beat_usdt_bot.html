@@ -1307,14 +1307,13 @@ document.addEventListener('DOMContentLoaded', () => { renderTrades(); });
 
 // ── FIREBASE CONFIG ──────────────────────────────────────────────────────────
 // 🔧 Înlocuiește cu datele tale din Firebase Console → Project Settings → Web App
-const firebaseConfig = {
-  apiKey: "AIzaSyBd4kC5mqaCa8bYyXuX0VK9Jk83eau8wXE",
-  authDomain: "bot-mai-2026-eth--beat.firebaseapp.com",
-  projectId: "bot-mai-2026-eth--beat",
-  storageBucket: "bot-mai-2026-eth--beat.firebasestorage.app",
-  messagingSenderId: "599633414128",
-  appId: "1:599633414128:web:80b0d69aa4bbc8fe1aff35",
-  measurementId: "G-LJZV6PVXED"
+const FB_CONFIG = {
+  apiKey:            "FIREBASE_API_KEY",
+  authDomain:        "FIREBASE_PROJECT_ID.firebaseapp.com",
+  projectId:         "FIREBASE_PROJECT_ID",
+  storageBucket:     "FIREBASE_PROJECT_ID.appspot.com",
+  messagingSenderId: "FIREBASE_SENDER_ID",
+  appId:             "FIREBASE_APP_ID"
 };
 
 firebase.initializeApp(FB_CONFIG);
